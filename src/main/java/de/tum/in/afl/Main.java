@@ -72,7 +72,7 @@ public class Main {
   }
 
   public static void exercise1(String[] args) throws Exception {
-    NFA nfa = NFA.fromRegexWithPrefix(regexpToTree(args[1]));
+    Automaton nfa = Automaton.fromRegexWithPrefix(regexpToTree(args[1]));
     int matchEnd = nfa.run(readFile(args[2]), true);
     System.out.print("Task 1: ");
     if(matchEnd == -1) System.out.println("not found");
@@ -112,8 +112,8 @@ public class Main {
 //        a.iteration();
 //        System.out.println(a.removeEpsilons().toDOT());
 
-        NFA nfa = NFA.fromRegex(regexpToTree(args[1]));
-        NFA.State sf = null;
+        Automaton nfa = Automaton.fromRegex(regexpToTree(args[1]));
+        Automaton.State sf = null;
         for(var s : nfa.finalStates) {
           sf = s;
         }

@@ -5,9 +5,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.TreeSet;
 
-public class NFA {
+public class Automaton {
 
-    static int stateCount = 1;
+    private boolean isEpsilon = true;
+    private boolean isDeterministic = false;
+    private static int stateCount = 1;
 
     static class State {
        final String label;
@@ -84,8 +86,8 @@ public class NFA {
     public State initialState;
     public HashSet<State> finalStates = new HashSet<>();
 
-    public static NFA fromSymbol(char c) {
-        NFA nfa = empty();
+    public static Automaton fromSymbol(char c) {
+        Automaton nfa = empty();
         State start = nfa.initialState;
         State end = new State("" + stateCount++);
         nfa.states.add(end);
@@ -94,17 +96,28 @@ public class NFA {
         return nfa;
     }
 
-    public static NFA fromEpsilon() {
-        NFA nfa = empty();
+    public static Automaton fromEpsilon() {
+        Automaton nfa = empty();
         nfa.finalStates.add(nfa.initialState);
         return nfa;
     }
 
-    public static NFA empty() {
-        NFA nfa = new NFA();
+    public static Automaton empty() {
+        Automaton nfa = new Automaton();
         State start = new State("" + stateCount++);
         nfa.states.add(start);
         nfa.initialState = start;
+        return nfa;
+    }
+
+    public static Automaton universal() {
+        Automaton nfa = fromEpsilon();
+        for(char c = 'A'; c <= 'Z'; c++) {
+            nfa.transitions.add(new Transition(nfa.initialState, new Symbol.Letter(c), nfa.initialState));
+        }
+        for(char c = 'a'; c <= 'z'; c++) {
+            nfa.transitions.add(new Transition(nfa.initialState, new Symbol.Letter(c), nfa.initialState));
+        }
         return nfa;
     }
 
@@ -163,7 +176,7 @@ public class NFA {
         }
     }
 
-    public void concat(NFA other) {
+    public void concat(Automaton other) {
         for (var s : finalStates) {
             transitions.add(new Transition(s, new Symbol.Epsilon(), other.initialState));
         }
@@ -172,7 +185,7 @@ public class NFA {
         this.finalStates = other.finalStates;
     }
 
-    public void union(NFA other) {
+    public void union(Automaton other) {
         State newStart = new State("" + stateCount++);
         transitions.add(new Transition(newStart, new Symbol.Epsilon(), this.initialState));
         transitions.add(new Transition(newStart, new Symbol.Epsilon(), other.initialState));
@@ -205,8 +218,8 @@ public class NFA {
         this.finalStates.add(newEnd);
     }
 
-    public NFA removeEpsilons() {
-        NFA nfa = new NFA();
+    public Automaton removeEpsilons() {
+        Automaton nfa = new Automaton();
         nfa.initialState = initialState;
         nfa.states.add(initialState);
         if(finalStates.contains(initialState)) {
@@ -257,41 +270,84 @@ public class NFA {
                 }
             }
         }
+        nfa.isEpsilon = false;
         return nfa;
     }
 
-    public static NFA universal() {
-        NFA nfa = fromEpsilon();
-        for(char c = 'A'; c <= 'Z'; c++) {
-            nfa.transitions.add(new Transition(nfa.initialState, new Symbol.Letter(c), nfa.initialState));
+    private static State getOrAddState(HashMap<HashSet<State>, State> stateMap, HashSet<State> nfaStates) {
+        if(stateMap.containsKey(nfaStates)) {
+            return stateMap.get(nfaStates);
+        } else {
+            State s = new State("");
+            stateMap.put(nfaStates, s);
+            return s;
         }
-        for(char c = 'a'; c <= 'z'; c++) {
-            nfa.transitions.add(new Transition(nfa.initialState, new Symbol.Letter(c), nfa.initialState));
-        }
-        return nfa;
     }
 
-    public static NFA fromRegexWithPrefix(org.antlr.runtime.tree.CommonTree ast) {
-        NFA pattern = epsilonNFAFromRegex(ast);
-        NFA univ = universal();
+    public Automaton toDFA() {
+        Automaton dfa = empty();
+        HashMap<HashSet<State>, State> stateMap = new HashMap<>();
+        ArrayList<HashSet<State>> workList = new ArrayList<>();
+
+        dfa.initialState = initialState;
+        HashSet<State> nfaInitialSet = new HashSet<>();
+        nfaInitialSet.add(initialState);
+        stateMap.put(nfaInitialSet, initialState);
+
+        workList.add(nfaInitialSet);
+        while(!workList.isEmpty()) {
+            HashSet<State> q = workList.remove(0);
+            dfa.states.add(getOrAddState(stateMap, q));
+            for(var s : q) {
+                if (finalStates.contains(s)) {
+                    dfa.finalStates.add(getOrAddState(stateMap, q));
+                    break;
+                }
+            }
+
+            HashMap<Symbol, HashSet<State>> qpp = new HashMap<>();
+            for(var t : transitions) {
+                if(!q.contains(t.from)) {
+                    continue;
+                }
+                if(!qpp.containsKey(t.symbol)) {
+                    qpp.put(t.symbol, new HashSet<State>());
+                }
+                qpp.get(t.symbol).add(t.to);
+            }
+            for (var kvp : qpp.entrySet()) {
+                if(!dfa.states.contains(getOrAddState(stateMap, kvp.getValue()))) {
+                    workList.add(kvp.getValue());
+                }
+                dfa.transitions.add(new Transition(getOrAddState(stateMap, q), kvp.getKey(), getOrAddState(stateMap, kvp.getValue())));
+            }
+        }
+        dfa.isEpsilon = false;
+        dfa.isDeterministic = true;
+        return dfa;
+    }
+
+    public static Automaton fromRegexWithPrefix(org.antlr.runtime.tree.CommonTree ast) {
+        Automaton pattern = epsilonNFAFromRegex(ast);
+        Automaton univ = universal();
         univ.concat(pattern);
         return univ.removeEpsilons();
     }
 
-    public static NFA fromRegex(org.antlr.runtime.tree.CommonTree ast) {
+    public static Automaton fromRegex(org.antlr.runtime.tree.CommonTree ast) {
         return epsilonNFAFromRegex(ast).removeEpsilons();
     }
 
-    public static NFA epsilonNFAFromRegex(org.antlr.runtime.tree.CommonTree ast) {
+    public static Automaton epsilonNFAFromRegex(org.antlr.runtime.tree.CommonTree ast) {
         int token = ast.getToken().getType();
 
-        NFA current = null;
+        Automaton current = null;
 
         switch (token) {
             //multi-ary connectives
             case RegexpParser.OR:
                 for (int i = 0; i < ast.getChildCount(); i++) {
-                    NFA next = NFA.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(i));
+                    Automaton next = Automaton.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(i));
                     if(current == null) {
                         current = next;
                     }
@@ -302,7 +358,7 @@ public class NFA {
                 break;
             case RegexpParser.CONCATENATION:
                 for (int i = 0; i < ast.getChildCount(); i++) {
-                    NFA next = NFA.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(i));
+                    Automaton next = Automaton.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(i));
                     if(current == null) {
                         current = next;
                     }
@@ -314,19 +370,19 @@ public class NFA {
 
             //unary operators
             case RegexpParser.STAR:
-                current = NFA.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(0));
+                current = Automaton.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(0));
                 current.iteration();
                 break;
 
             //atoms, no children
             case RegexpParser.ID:
-                current = NFA.fromSymbol(ast.getText().charAt(0));
+                current = Automaton.fromSymbol(ast.getText().charAt(0));
                 break;
             case RegexpParser.EPSILON:
-                current = NFA.fromEpsilon();
+                current = Automaton.fromEpsilon();
                 break;
             case RegexpParser.EMPTYSET:
-                current = NFA.empty();
+                current = Automaton.empty();
                 break;
 
             default:
