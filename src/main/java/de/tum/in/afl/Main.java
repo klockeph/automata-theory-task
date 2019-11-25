@@ -4,6 +4,11 @@ import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CharStream;
 import org.antlr.runtime.CommonTokenStream;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.stream.Collectors;
+
 public class Main {
 
   public static org.antlr.runtime.tree.CommonTree regexpToTree(String file) throws Exception {
@@ -62,6 +67,18 @@ public class Main {
     }
   }
 
+  public static String readFile(String filename) throws IOException {
+    return Files.lines(Paths.get(filename)).collect(Collectors.joining(""));
+  }
+
+  public static void exercise1(String[] args) throws Exception {
+    NFA nfa = NFA.fromRegexWithPrefix(regexpToTree(args[1]));
+    int matchEnd = nfa.run(readFile(args[2]), true);
+    System.out.print("Task 1: ");
+    if(matchEnd == -1) System.out.println("not found");
+    else System.out.println(matchEnd);
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 4) {
       System.err.println("Use the following format: [task] [regex-file] [text-file] [edit-distance]");
@@ -73,6 +90,7 @@ public class Main {
     // TODO: Write solutions here.
     switch (task) {
       case 1:
+          exercise1(args);
         break;
 
       case 2:

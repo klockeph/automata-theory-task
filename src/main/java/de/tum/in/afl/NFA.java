@@ -108,7 +108,11 @@ public class NFA {
         return nfa;
     }
 
-    public boolean run(String word) {
+    public int run(String word) {
+        return run(word, false);
+    }
+
+    public int run(String word, boolean stopAtMatch) {
         HashMap<State, HashSet<Transition>> cache = new HashMap<>();
         HashSet<State> currentStates = new HashSet<>();
 
@@ -135,11 +139,14 @@ public class NFA {
                 }
                 for(var t : trans)  {
                     if(t.symbol instanceof Symbol.Epsilon) {
-                        throw new AssertionError("Asserting non-Epsilon NFA");
+                        throw new AssertionError("Asserting non-Epsilon NFA! Did you forget to call removeEpsilons() ?");
                     }
                     if(t.symbol instanceof Symbol.Letter) {
                         if(((Symbol.Letter) t.symbol).value == word.charAt(i)) {
                             nextStates.add(t.to);
+                            if(stopAtMatch && finalStates.contains(t.to)) {
+                                return i;
+                            }
                         }
                     }
                 }
@@ -148,7 +155,12 @@ public class NFA {
             currentStates = nextStates;
         }
         currentStates.retainAll(finalStates);
-        return currentStates.size() > 0;
+        if(currentStates.size() > 0) {
+            return word.length();
+        }
+        else {
+            return -1;
+        }
     }
 
     public void concat(NFA other) {
@@ -176,14 +188,17 @@ public class NFA {
     public void iteration() {
         State newStart = new State("" + stateCount++);
         State newEnd = new State("" + stateCount++);
+        State newIter = new State("" + stateCount++);
 
-        transitions.add(new Transition(newStart, new Symbol.Epsilon(), this.initialState));
+        transitions.add(new Transition(newStart, new Symbol.Epsilon(), newIter));
+        transitions.add(new Transition(newIter, new Symbol.Epsilon(), this.initialState));
+        transitions.add(new Transition(newIter, new Symbol.Epsilon(), newEnd));
         for(var s : finalStates) {
-            transitions.add(new Transition(s, new Symbol.Epsilon(), newEnd));
-            transitions.add(new Transition(s, new Symbol.Epsilon(), this.initialState));
+            transitions.add(new Transition(s, new Symbol.Epsilon(), newIter));
         }
 
         this.states.add(newStart);
+        this.states.add(newIter);
         this.states.add(newEnd);
         this.initialState = newStart;
         this.finalStates.clear();
@@ -191,7 +206,6 @@ public class NFA {
     }
 
     public NFA removeEpsilons() {
-        System.out.println("Removing epsilons");
         NFA nfa = new NFA();
         nfa.initialState = initialState;
         nfa.states.add(initialState);
@@ -246,6 +260,24 @@ public class NFA {
         return nfa;
     }
 
+    public static NFA universal() {
+        NFA nfa = fromEpsilon();
+        for(char c = 'A'; c <= 'Z'; c++) {
+            nfa.transitions.add(new Transition(nfa.initialState, new Symbol.Letter(c), nfa.initialState));
+        }
+        for(char c = 'a'; c <= 'z'; c++) {
+            nfa.transitions.add(new Transition(nfa.initialState, new Symbol.Letter(c), nfa.initialState));
+        }
+        return nfa;
+    }
+
+    public static NFA fromRegexWithPrefix(org.antlr.runtime.tree.CommonTree ast) {
+        NFA pattern = epsilonNFAFromRegex(ast);
+        NFA univ = universal();
+        univ.concat(pattern);
+        return univ.removeEpsilons();
+    }
+
     public static NFA fromRegex(org.antlr.runtime.tree.CommonTree ast) {
         return epsilonNFAFromRegex(ast).removeEpsilons();
     }
@@ -258,7 +290,6 @@ public class NFA {
         switch (token) {
             //multi-ary connectives
             case RegexpParser.OR:
-                System.out.println("or");
                 for (int i = 0; i < ast.getChildCount(); i++) {
                     NFA next = NFA.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(i));
                     if(current == null) {
@@ -270,7 +301,6 @@ public class NFA {
                 }
                 break;
             case RegexpParser.CONCATENATION:
-                System.out.println("concatenate");
                 for (int i = 0; i < ast.getChildCount(); i++) {
                     NFA next = NFA.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(i));
                     if(current == null) {
@@ -284,27 +314,22 @@ public class NFA {
 
             //unary operators
             case RegexpParser.STAR:
-                System.out.println("star");
                 current = NFA.epsilonNFAFromRegex((org.antlr.runtime.tree.CommonTree) ast.getChild(0));
                 current.iteration();
                 break;
 
             //atoms, no children
             case RegexpParser.ID:
-                System.out.println(ast.getText());
                 current = NFA.fromSymbol(ast.getText().charAt(0));
                 break;
             case RegexpParser.EPSILON:
-                System.out.println("epsilon");
                 current = NFA.fromEpsilon();
                 break;
             case RegexpParser.EMPTYSET:
-                System.out.println("empty_set");
                 current = NFA.empty();
                 break;
 
             default:
-                System.out.println("D'OH!");
                 throw new AssertionError("Unknown Token in Regex!");
         }
 
