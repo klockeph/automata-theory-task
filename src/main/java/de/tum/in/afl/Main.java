@@ -99,8 +99,9 @@ public class Main {
         for(var s : nfa.finalStates) {
           sf = s;
         }
-        System.out.println(nfa.transitions.contains(new NFA.Transition(nfa.initialState, new NFA.Symbol.Letter('d'), sf)));
         System.out.println(nfa.toDOT());
+        System.out.println("abd -> " + nfa.run("abd"));
+        System.out.println("bad -> " + nfa.run("bad"));
         break;
 
       default:

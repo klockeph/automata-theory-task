@@ -1,10 +1,13 @@
 package de.tum.in.afl;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.TreeSet;
 
 public class NFA {
+
+    static int stateCount = 1;
 
     static class State {
        final String label;
@@ -82,32 +85,70 @@ public class NFA {
     public HashSet<State> finalStates = new HashSet<>();
 
     public static NFA fromSymbol(char c) {
-        NFA nfa = new NFA();
-        State start = new State("");
-        State end = new State("");
-        nfa.states.add(start);
+        NFA nfa = empty();
+        State start = nfa.initialState;
+        State end = new State("" + stateCount++);
         nfa.states.add(end);
-        nfa.transitions.add(new Transition(start, new Symbol.Letter(c), end));
-        nfa.initialState = start;
         nfa.finalStates.add(end);
+        nfa.transitions.add(new Transition(start, new Symbol.Letter(c), end));
         return nfa;
     }
 
     public static NFA fromEpsilon() {
-        NFA nfa = new NFA();
-        State start = new State("");
-        nfa.states.add(start);
-        nfa.finalStates.add(start);
-        nfa.initialState = start;
+        NFA nfa = empty();
+        nfa.finalStates.add(nfa.initialState);
         return nfa;
     }
 
     public static NFA empty() {
         NFA nfa = new NFA();
-        State start = new State("");
+        State start = new State("" + stateCount++);
         nfa.states.add(start);
         nfa.initialState = start;
         return nfa;
+    }
+
+    public boolean run(String word) {
+        HashMap<State, HashSet<Transition>> cache = new HashMap<>();
+        HashSet<State> currentStates = new HashSet<>();
+
+        currentStates.add(initialState);
+
+        for(int i = 0; i < word.length(); i++) {
+            var nextStates = new HashSet<State>();
+
+//            System.out.print("Step " + i + ": ");
+
+            for(var s: currentStates) {
+//                System.out.print(s.label + ", ");
+                HashSet<Transition> trans;
+                if(cache.containsKey(s)) {
+                    trans = cache.get(s);
+                } else {
+                    trans = new HashSet<>();
+                    for(var t: transitions) {
+                        if(t.from == s) {
+                            trans.add(t);
+                        }
+                    }
+                    cache.put(s, trans);
+                }
+                for(var t : trans)  {
+                    if(t.symbol instanceof Symbol.Epsilon) {
+                        throw new AssertionError("Asserting non-Epsilon NFA");
+                    }
+                    if(t.symbol instanceof Symbol.Letter) {
+                        if(((Symbol.Letter) t.symbol).value == word.charAt(i)) {
+                            nextStates.add(t.to);
+                        }
+                    }
+                }
+            }
+//            System.out.println();
+            currentStates = nextStates;
+        }
+        currentStates.retainAll(finalStates);
+        return currentStates.size() > 0;
     }
 
     public void concat(NFA other) {
@@ -120,7 +161,7 @@ public class NFA {
     }
 
     public void union(NFA other) {
-        State newStart = new State("");
+        State newStart = new State("" + stateCount++);
         transitions.add(new Transition(newStart, new Symbol.Epsilon(), this.initialState));
         transitions.add(new Transition(newStart, new Symbol.Epsilon(), other.initialState));
 
@@ -133,8 +174,8 @@ public class NFA {
     }
 
     public void iteration() {
-        State newStart = new State("");
-        State newEnd = new State("");
+        State newStart = new State("" + stateCount++);
+        State newEnd = new State("" + stateCount++);
 
         transitions.add(new Transition(newStart, new Symbol.Epsilon(), this.initialState));
         for(var s : finalStates) {
