@@ -1,9 +1,7 @@
 package de.tum.in.afl;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.TreeSet;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Automaton {
 
@@ -274,18 +272,11 @@ public class Automaton {
         return nfa;
     }
 
-    private static State getOrAddState(HashMap<HashSet<State>, State> stateMap, HashSet<State> nfaStates) {
-        if(stateMap.containsKey(nfaStates)) {
-            return stateMap.get(nfaStates);
-        } else {
-            State s = new State("");
-            stateMap.put(nfaStates, s);
-            return s;
-        }
-    }
-
     public Automaton toDFA() {
-        Automaton dfa = empty();
+        if(isEpsilon) {
+            throw new AssertionError("Can't convert Epsilon-NFA to DFA. Did you forget to call removeEpsilon() ?");
+        }
+        Automaton dfa = new Automaton();
         HashMap<HashSet<State>, State> stateMap = new HashMap<>();
         ArrayList<HashSet<State>> workList = new ArrayList<>();
 
@@ -297,10 +288,10 @@ public class Automaton {
         workList.add(nfaInitialSet);
         while(!workList.isEmpty()) {
             HashSet<State> q = workList.remove(0);
-            dfa.states.add(getOrAddState(stateMap, q));
+            dfa.states.add(stateMap.get(q));
             for(var s : q) {
                 if (finalStates.contains(s)) {
-                    dfa.finalStates.add(getOrAddState(stateMap, q));
+                    dfa.finalStates.add(stateMap.get(q));
                     break;
                 }
             }
@@ -311,20 +302,89 @@ public class Automaton {
                     continue;
                 }
                 if(!qpp.containsKey(t.symbol)) {
-                    qpp.put(t.symbol, new HashSet<State>());
+                    qpp.put(t.symbol, new HashSet<>());
                 }
                 qpp.get(t.symbol).add(t.to);
             }
             for (var kvp : qpp.entrySet()) {
-                if(!dfa.states.contains(getOrAddState(stateMap, kvp.getValue()))) {
+                if(!stateMap.containsKey(kvp.getValue())) {
+                    State newState = new State(kvp.getValue().stream().map(x -> x.label).collect(Collectors.joining(",")));
+                    stateMap.put(kvp.getValue(), newState);
+                }
+                if(!dfa.states.contains(stateMap.get(kvp.getValue()))) {
                     workList.add(kvp.getValue());
                 }
-                dfa.transitions.add(new Transition(getOrAddState(stateMap, q), kvp.getKey(), getOrAddState(stateMap, kvp.getValue())));
+                dfa.transitions.add(new Transition(stateMap.get(q), kvp.getKey(), stateMap.get(kvp.getValue())));
             }
         }
         dfa.isEpsilon = false;
         dfa.isDeterministic = true;
         return dfa;
+    }
+
+    public void toEditAutomaton(int editDistance) {
+        HashMap<State, State[]> editStates = new HashMap<>();
+        for(var s : states) {
+            var a = new State[editDistance+1];
+            a[0] = s;
+            for(var i = 1; i <= editDistance; i++) {
+                a[i] = new State(s.label + "|" + i);
+            }
+            editStates.put(s, a);
+        }
+
+        // copying across "layers":
+        HashSet<Transition> newTransitions = new HashSet<>();
+        for(var t : transitions) {
+            State[] fromEdits = editStates.get(t.from);
+            State[] toEdits = editStates.get(t.to);
+            for(var i = 0; i <= editDistance; i++) {
+                // copying inside layer
+                if(i != 0) {
+                    newTransitions.add(new Transition(fromEdits[i], t.symbol, toEdits[i]));
+                }
+                if(i != editDistance) {
+                    // deletion:
+                    newTransitions.add(new Transition(fromEdits[i], new Symbol.Epsilon(), toEdits[i+1]));
+                    // replacement:
+                    for(char a = 'a'; a <= 'z'; a++){
+                        if(a != ((Symbol.Letter)t.symbol).value) {
+                            newTransitions.add(new Transition(fromEdits[i], new Symbol.Letter(a), toEdits[i + 1]));
+                        }
+                    }
+                    for(char a = 'A'; a <= 'Z'; a++) {
+                        if(a != ((Symbol.Letter)t.symbol).value) {
+                            newTransitions.add(new Transition(fromEdits[i], new Symbol.Letter(a), toEdits[i + 1]));
+                        }
+                    }
+                }
+            }
+        }
+
+        // insertions:
+        for(var s : states) {
+           State[] edits = editStates.get(s);
+           for(int i = 0; i < editDistance; i++) {
+
+               for(char a = 'a'; a <= 'z'; a++) {
+                   newTransitions.add(new Transition(edits[i], new Symbol.Letter(a), edits[i + 1]));
+               }
+               for(char a = 'A'; a <= 'Z'; a++) {
+                   newTransitions.add(new Transition(edits[i], new Symbol.Letter(a), edits[i + 1]));
+               }
+           }
+        }
+
+        for(var edits : editStates.entrySet()) {
+            states.addAll(Arrays.asList(edits.getValue()));
+            if(finalStates.contains(edits.getKey())) {
+                finalStates.addAll(Arrays.asList(edits.getValue()));
+            }
+        }
+        transitions.addAll(newTransitions);
+
+        isDeterministic = false;
+        isEpsilon = true;
     }
 
     public static Automaton fromRegexWithPrefix(org.antlr.runtime.tree.CommonTree ast) {

@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2fe7a45b-1872-4851-8133-f9dbf7542211" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/de/tum/in/afl/Automaton.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/de/tum/in/afl/Automaton.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/de/tum/in/afl/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/de/tum/in/afl/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/de/tum/in/afl/NFA.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/de/tum/in/afl/Automaton.java" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -141,7 +140,7 @@
       <updated>1574355122818</updated>
       <workItem from="1574355128921" duration="3647000" />
       <workItem from="1574687677363" duration="5446000" />
-      <workItem from="1574693875160" duration="11782000" />
+      <workItem from="1574693875160" duration="16481000" />
     </task>
     <servers />
   </component>

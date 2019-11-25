@@ -79,6 +79,28 @@ public class Main {
     else System.out.println(matchEnd);
   }
 
+  public static void exercise2(String[] args) throws Exception {
+    System.out.println("Building Automaton from Regex");
+    Automaton nfa = Automaton.fromRegex(regexpToTree(args[1]));
+    System.out.println("Building DFA");
+    Automaton dfa = nfa.toDFA();
+    int editDistance = Integer.parseInt(args[3]);
+    System.out.println("Building Edit Automaton");
+    dfa.toEditAutomaton(editDistance);
+    System.out.println("Removing Epsilons");
+    nfa = dfa.removeEpsilons();
+    System.out.println("Adding Prefix");
+    Automaton univ = Automaton.universal();
+    univ.concat(nfa);
+    System.out.println("Removing Epsilons");
+    univ = univ.removeEpsilons();
+    System.out.println("Running");
+    int matchEnd = univ.run(readFile(args[2]), true);
+    System.out.print("Task 2: ");
+    if(matchEnd == -1) System.out.println("not found");
+    else System.out.println(matchEnd);
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 4) {
       System.err.println("Use the following format: [task] [regex-file] [text-file] [edit-distance]");
@@ -94,6 +116,7 @@ public class Main {
         break;
 
       case 2:
+          exercise2(args);
         break;
 
       case 3:
@@ -104,22 +127,16 @@ public class Main {
 
       case 5:
         // DEBUGGING
-//        NFA a = NFA.fromSymbol('a');
-//        NFA b = NFA.fromSymbol('b');
-//        a.concat(b);
-//        NFA c = NFA.fromSymbol('c');
-//        a.union(c);
-//        a.iteration();
-//        System.out.println(a.removeEpsilons().toDOT());
 
-        Automaton nfa = Automaton.fromRegex(regexpToTree(args[1]));
-        Automaton.State sf = null;
-        for(var s : nfa.finalStates) {
-          sf = s;
-        }
-        System.out.println(nfa.toDOT());
+        Automaton nfa = Automaton.fromRegex(regexpToTree(args[1])).removeEpsilons();
+        nfa = nfa.toDFA();
+        nfa.toEditAutomaton(1);
+        nfa = nfa.removeEpsilons();
+//        System.out.println(nfa.toDOT());
         System.out.println("abd -> " + nfa.run("abd"));
         System.out.println("bad -> " + nfa.run("bad"));
+        System.out.println("abc -> " + nfa.run("abc"));
+        System.out.println("bd -> " + nfa.run("bd"));
         break;
 
       default:
