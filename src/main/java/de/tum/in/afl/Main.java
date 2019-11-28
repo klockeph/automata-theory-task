@@ -76,29 +76,96 @@ public class Main {
     int matchEnd = nfa.run(readFile(args[2]), true);
     System.out.print("Task 1: ");
     if(matchEnd == -1) System.out.println("not found");
-    else System.out.println(matchEnd);
+    else System.out.println(matchEnd+1);
+  }
+
+  public static Automaton buildEditAutomaton(org.antlr.runtime.tree.CommonTree ast, int editDistance) {
+    Automaton nfa = Automaton.fromRegex(ast);
+//    System.out.println("Building DFA");
+    nfa = nfa.toDFA();
+//    System.out.println("Building Edit Automaton");
+    nfa.toEditAutomaton(editDistance);
+//    System.out.println("Removing Epsilons");
+    // concat a final State that accepts epsilons to have only 1 final state
+    nfa.concat(Automaton.fromEpsilon());
+
+    nfa = nfa.removeEpsilons();
+//    System.out.println("Adding Prefix");
+    Automaton univ = Automaton.universal();
+    univ.concat(nfa);
+//    System.out.println("Removing Epsilons");
+    univ = univ.removeEpsilons();
+//    System.out.println("Running");
+    return univ;
   }
 
   public static void exercise2(String[] args) throws Exception {
-    System.out.println("Building Automaton from Regex");
-    Automaton nfa = Automaton.fromRegex(regexpToTree(args[1]));
-    System.out.println("Building DFA");
-    Automaton dfa = nfa.toDFA();
+    var ast = regexpToTree(args[1]);
     int editDistance = Integer.parseInt(args[3]);
-    System.out.println("Building Edit Automaton");
-    dfa.toEditAutomaton(editDistance);
-    System.out.println("Removing Epsilons");
-    nfa = dfa.removeEpsilons();
-    System.out.println("Adding Prefix");
-    Automaton univ = Automaton.universal();
-    univ.concat(nfa);
-    System.out.println("Removing Epsilons");
-    univ = univ.removeEpsilons();
-    System.out.println("Running");
-    int matchEnd = univ.run(readFile(args[2]), true);
+    Automaton nfa = buildEditAutomaton(ast, editDistance);
+    int matchEnd = nfa.run(readFile(args[2]), true);
     System.out.print("Task 2: ");
     if(matchEnd == -1) System.out.println("not found");
-    else System.out.println(matchEnd);
+    else System.out.println(matchEnd+1);
+  }
+
+  public static void printShortestMatchStartAndEnd(Automaton forward, Automaton backward, String input) {
+    int minimalLength = Integer.MAX_VALUE;
+    int start = -1;
+    int end = -1;
+    int offset = 0;
+    while(!input.isEmpty()) {
+      int matchEnd = forward.run(input, true);
+      if(matchEnd == -1) {
+        break;
+      }
+      String reversedInput = new StringBuilder(input.substring(0, matchEnd+1)).reverse().toString();
+      int matchLength = backward.run(reversedInput, true);
+      if(matchLength == -1) {
+        System.out.println("This shouldn't happen: If forward automaton matched, backwards automaton must too");
+        break;
+      }
+
+//      System.out.println("Match from " + (matchEnd - matchLength + offset) + " to " + (matchEnd + offset));
+      if(matchLength < minimalLength) {
+        minimalLength = matchLength;
+        start = matchEnd - matchLength + offset;
+        end = matchEnd + offset;
+      }
+
+      input = input.substring(matchEnd);
+      offset += matchEnd;
+//      System.out.println("new input: " + input);
+    }
+
+    if(start == -1) {
+      System.out.println("not found");
+    }
+    else {
+      System.out.println("" + (start + 1) + " - " + (end + 1));
+    }
+  }
+
+  public static void exercise3(String[] args) throws Exception {
+    Automaton nfa = Automaton.fromRegexWithPrefix(regexpToTree(args[1]));
+    Automaton backwardsNfa = nfa.backwardsMatchAutomaton();
+
+    String input = readFile(args[2]);
+
+    System.out.print("Task 3: ");
+    printShortestMatchStartAndEnd(nfa, backwardsNfa, input);
+  }
+
+  public static void exercise4(String[] args) throws Exception {
+    var ast = regexpToTree(args[1]);
+    int editDistance = Integer.parseInt(args[3]);
+    Automaton nfa = buildEditAutomaton(ast, editDistance);
+    Automaton backwardsNfa = nfa.backwardsMatchAutomaton();
+
+    String input = readFile(args[2]);
+
+    System.out.print("Task 4: ");
+    printShortestMatchStartAndEnd(nfa, backwardsNfa, input);
   }
 
   public static void main(String[] args) throws Exception {
@@ -120,9 +187,11 @@ public class Main {
         break;
 
       case 3:
+          exercise3(args);
         break;
 
       case 4:
+          exercise4(args);
         break;
 
       case 5:

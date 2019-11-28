@@ -387,6 +387,28 @@ public class Automaton {
         isEpsilon = true;
     }
 
+    public Automaton backwardsMatchAutomaton() {
+        Automaton newNFA = new Automaton();
+        newNFA.states = states;
+
+        if(finalStates.size() != 1) {
+            throw new AssertionError("The source automaton has more than one final state!");
+        }
+
+        // Only 1 final state, but can only iterate over HashSet
+        for (var f : finalStates) {
+           newNFA.initialState = f;
+        }
+
+        newNFA.finalStates.add(initialState);
+
+        for(var t : transitions) {
+            newNFA.transitions.add(new Transition(t.to, t.symbol, t.from));
+        }
+
+        return newNFA;
+    }
+
     public static Automaton fromRegexWithPrefix(org.antlr.runtime.tree.CommonTree ast) {
         Automaton pattern = epsilonNFAFromRegex(ast);
         Automaton univ = universal();
