@@ -129,6 +129,10 @@ public class Automaton {
 
         currentStates.add(initialState);
 
+        if(finalStates.contains(initialState)) {
+            return 0;
+        }
+
         for(int i = 0; i < word.length(); i++) {
             var nextStates = new HashSet<State>();
 
@@ -156,7 +160,7 @@ public class Automaton {
                         if(((Symbol.Letter) t.symbol).value == word.charAt(i)) {
                             nextStates.add(t.to);
                             if(stopAtMatch && finalStates.contains(t.to)) {
-                                return i;
+                                return i+1;
                             }
                         }
                     }

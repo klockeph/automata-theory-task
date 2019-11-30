@@ -76,7 +76,7 @@ public class Main {
     int matchEnd = nfa.run(readFile(args[2]), true);
     System.out.print("Task 1: ");
     if(matchEnd == -1) System.out.println("not found");
-    else System.out.println(matchEnd+1);
+    else System.out.println(matchEnd);
   }
 
   public static Automaton buildEditAutomaton(org.antlr.runtime.tree.CommonTree ast, int editDistance) {
@@ -106,7 +106,7 @@ public class Main {
     int matchEnd = nfa.run(readFile(args[2]), true);
     System.out.print("Task 2: ");
     if(matchEnd == -1) System.out.println("not found");
-    else System.out.println(matchEnd+1);
+    else System.out.println(matchEnd);
   }
 
   public static void printShortestMatchStartAndEnd(Automaton forward, Automaton backward, String input) {
@@ -119,7 +119,10 @@ public class Main {
       if(matchEnd == -1) {
         break;
       }
-      String reversedInput = new StringBuilder(input.substring(0, matchEnd+1)).reverse().toString();
+//      System.out.println("input = " + input);
+//      System.out.println("matchEnd = " + matchEnd);
+      String reversedInput = new StringBuilder(input.substring(0, matchEnd)).reverse().toString();
+//      System.out.println("reversedInput = " + reversedInput);
       int matchLength = backward.run(reversedInput, true);
       if(matchLength == -1) {
         System.out.println("This shouldn't happen: If forward automaton matched, backwards automaton must too");
@@ -142,7 +145,7 @@ public class Main {
       System.out.println("not found");
     }
     else {
-      System.out.println("" + (start + 1) + " - " + (end + 1));
+      System.out.println("" + start + " - " + end);
     }
   }
 
