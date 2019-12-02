@@ -119,6 +119,9 @@ public class Main {
       if(matchEnd == -1) {
         break;
       }
+      if(matchEnd == 0) {
+        System.out.println("" + offset + " - " + offset);
+      }
 //      System.out.println("input = " + input);
 //      System.out.println("matchEnd = " + matchEnd);
       String reversedInput = new StringBuilder(input.substring(0, matchEnd)).reverse().toString();
@@ -132,7 +135,7 @@ public class Main {
 //      System.out.println("Match from " + (matchEnd - matchLength + offset) + " to " + (matchEnd + offset));
       if(matchLength < minimalLength) {
         minimalLength = matchLength;
-        start = matchEnd - matchLength + offset;
+        start = matchEnd - matchLength + offset + 1;
         end = matchEnd + offset;
       }
 
